@@ -15,10 +15,10 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t('dashboard.kpi.inventoryTurnover') }}</span>
             </div>
-            <div class="kpi-value">4.2</div>
-            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 4.5 (-6.67%)</div>
+            <div class="kpi-value">—</div>
+            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 4.5 ({{ t('dashboard.kpi.definitionPending') }})</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress" style="width: 93.33%"></div>
+              <div class="kpi-progress" style="width: 0%"></div>
             </div>
           </div>
 
@@ -37,10 +37,10 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t('dashboard.kpi.orderFillRate') }}</span>
             </div>
-            <div class="kpi-value">{{ fillRate }}%</div>
+            <div class="kpi-value">{{ fillRate.toFixed(1) }}%</div>
             <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 95% ({{ fillRate - 95 > 0 ? '+' : '' }}{{ (fillRate - 95).toFixed(2) }}%)</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress success" :style="{ width: (fillRate / 95 * 100) + '%' }"></div>
+              <div :class="['kpi-progress', { success: fillRate >= 95 }]" :style="{ width: Math.min(fillRate / 95 * 100, 100) + '%' }"></div>
             </div>
           </div>
 
@@ -59,10 +59,13 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t('dashboard.kpi.avgProcessingTime') }}</span>
             </div>
-            <div class="kpi-value">2.8</div>
-            <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 3.0 (-6.67%)</div>
+            <div class="kpi-value">{{ avgProcessingDays === null ? '—' : avgProcessingDays.toFixed(1) }}</div>
+            <div class="kpi-goal">
+              {{ t('dashboard.kpi.goal') }}: {{ processingGoal.toFixed(1) }}
+              <template v-if="avgProcessingDays !== null">({{ processingDelta > 0 ? '+' : '' }}{{ processingDelta.toFixed(2) }}%)</template>
+            </div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress success" style="width: 93.33%"></div>
+              <div :class="['kpi-progress', { success: avgProcessingDays !== null && avgProcessingDays <= processingGoal }]" :style="{ width: processingProgress + '%' }"></div>
             </div>
           </div>
         </div>
@@ -337,9 +340,6 @@ export default {
       getCurrentFilters
     } = useFilters()
 
-    const ordersData = ref({ fulfilled: 187, goal: 200 })
-    const fillRate = ref(96.8)
-
     const revenueGoal = computed(() => {
       // $800K per month, so if looking at all months (12 months), goal is 12 * 800K = 9.6M
       const monthlyGoal = 800000
@@ -359,7 +359,7 @@ export default {
     const statusData = computed(() => {
       const counts = { delivered: 0, shipped: 0, processing: 0, backordered: 0 }
       allOrders.value.forEach(order => {
-        const status = order.status.toLowerCase()
+        const status = (order.status || '').toLowerCase()
         if (counts[status] !== undefined) counts[status]++
       })
       return counts
@@ -371,7 +371,7 @@ export default {
       const avgOrderValue = totalOrders > 0 ? totalValue / totalOrders : 0
 
       // Calculate on-time delivery rate (delivered orders that arrived on or before expected date)
-      const deliveredOrders = allOrders.value.filter(o => o.status.toLowerCase() === 'delivered')
+      const deliveredOrders = allOrders.value.filter(o => (o.status || '').toLowerCase() === 'delivered')
       const onTimeDeliveries = deliveredOrders.filter(o => {
         if (o.actual_delivery && o.expected_delivery) {
           return new Date(o.actual_delivery) <= new Date(o.expected_delivery)
@@ -388,8 +388,11 @@ export default {
           const orderDate = new Date(o.order_date)
           const deliveryDate = new Date(o.actual_delivery)
           const days = Math.round((deliveryDate - orderDate) / (1000 * 60 * 60 * 24))
-          totalDays += days
-          countWithDates++
+          // Skip unparseable dates so one bad record cannot turn the average into NaN
+          if (Number.isFinite(days)) {
+            totalDays += days
+            countWithDates++
+          }
         }
       })
       const avgFulfillmentDays = countWithDates > 0 ? totalDays / countWithDates : 0
@@ -399,8 +402,38 @@ export default {
         totalValue,
         avgOrderValue,
         onTimeRate,
-        avgFulfillmentDays
+        avgFulfillmentDays,
+        countWithDates
       }
+    })
+
+    // KPI cards: derived from the filtered orders (allOrders), so they follow the filters
+    // Fulfilled = delivered orders. Goal: 200 for the full year, 200 / 12 for a single month
+    const ordersData = computed(() => ({
+      fulfilled: statusData.value.delivered,
+      goal: selectedPeriod.value === 'all' ? 200 : Math.round(200 / 12)
+    }))
+
+    // Fill rate = (delivered + shipped) / all orders, as a percentage. 0 when there are no orders
+    const fillRate = computed(() => {
+      const total = allOrders.value.length
+      if (total === 0) return 0
+      const filled = statusData.value.delivered + statusData.value.shipped
+      return (filled / total) * 100
+    })
+
+    // Avg processing time = average days from order to delivery. null when there is nothing to average
+    const processingGoal = 3.0
+    const avgProcessingDays = computed(() => {
+      return orderHealthMetrics.value.countWithDates > 0
+        ? orderHealthMetrics.value.avgFulfillmentDays
+        : null
+    })
+    const processingDelta = computed(() => {
+      return avgProcessingDays.value === null ? 0 : (avgProcessingDays.value / processingGoal - 1) * 100
+    })
+    const processingProgress = computed(() => {
+      return avgProcessingDays.value === null ? 0 : Math.min(avgProcessingDays.value / processingGoal * 100, 100)
     })
 
     const categoryData = computed(() => {
@@ -558,26 +591,37 @@ export default {
       return allBacklogItems.value.filter(b => validSkus.has(b.item_sku))
     })
 
+    // Only the most recent request may update the page (a slow, older response must not overwrite it)
+    let latestRequest = 0
+
     const loadData = async () => {
+      const requestId = ++latestRequest
       try {
         loading.value = true
+        error.value = null
         const filters = getCurrentFilters()
 
-        const [summaryData, ordersData, inventoryData, backlogData] = await Promise.all([
+        const [summaryData, ordersResult, inventoryData, backlogData] = await Promise.all([
           api.getDashboardSummary(filters),
           api.getOrders(filters),
           api.getInventory(filters),
           api.getBacklog()
         ])
 
+        if (requestId !== latestRequest) return
+
         summary.value = summaryData
-        allOrders.value = ordersData
+        allOrders.value = ordersResult
         inventoryItems.value = inventoryData
         allBacklogItems.value = backlogData
       } catch (err) {
-        error.value = 'Failed to load dashboard data: ' + err.message
+        if (requestId === latestRequest) {
+          error.value = 'Failed to load dashboard data: ' + err.message
+        }
       } finally {
-        loading.value = false
+        if (requestId === latestRequest) {
+          loading.value = false
+        }
       }
     }
 
@@ -686,6 +730,10 @@ export default {
       summary,
       ordersData,
       fillRate,
+      processingGoal,
+      avgProcessingDays,
+      processingDelta,
+      processingProgress,
       statusData,
       orderHealthMetrics,
       categoryData,
