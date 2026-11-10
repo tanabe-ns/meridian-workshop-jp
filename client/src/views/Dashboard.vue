@@ -37,10 +37,10 @@
             <div class="kpi-header">
               <span class="kpi-label">{{ t('dashboard.kpi.orderFillRate') }}</span>
             </div>
-            <div class="kpi-value">{{ fillRate }}%</div>
+            <div class="kpi-value">{{ fillRate.toFixed(1) }}%</div>
             <div class="kpi-goal">{{ t('dashboard.kpi.goal') }}: 95% ({{ fillRate - 95 > 0 ? '+' : '' }}{{ (fillRate - 95).toFixed(2) }}%)</div>
             <div class="kpi-progress-bar">
-              <div class="kpi-progress success" :style="{ width: (fillRate / 95 * 100) + '%' }"></div>
+              <div :class="['kpi-progress', { success: fillRate >= 95 }]" :style="{ width: Math.min(fillRate / 95 * 100, 100) + '%' }"></div>
             </div>
           </div>
 
@@ -359,7 +359,7 @@ export default {
     const statusData = computed(() => {
       const counts = { delivered: 0, shipped: 0, processing: 0, backordered: 0 }
       allOrders.value.forEach(order => {
-        const status = order.status.toLowerCase()
+        const status = (order.status || '').toLowerCase()
         if (counts[status] !== undefined) counts[status]++
       })
       return counts
@@ -371,7 +371,7 @@ export default {
       const avgOrderValue = totalOrders > 0 ? totalValue / totalOrders : 0
 
       // Calculate on-time delivery rate (delivered orders that arrived on or before expected date)
-      const deliveredOrders = allOrders.value.filter(o => o.status.toLowerCase() === 'delivered')
+      const deliveredOrders = allOrders.value.filter(o => (o.status || '').toLowerCase() === 'delivered')
       const onTimeDeliveries = deliveredOrders.filter(o => {
         if (o.actual_delivery && o.expected_delivery) {
           return new Date(o.actual_delivery) <= new Date(o.expected_delivery)
@@ -388,8 +388,11 @@ export default {
           const orderDate = new Date(o.order_date)
           const deliveryDate = new Date(o.actual_delivery)
           const days = Math.round((deliveryDate - orderDate) / (1000 * 60 * 60 * 24))
-          totalDays += days
-          countWithDates++
+          // Skip unparseable dates so one bad record cannot turn the average into NaN
+          if (Number.isFinite(days)) {
+            totalDays += days
+            countWithDates++
+          }
         }
       })
       const avgFulfillmentDays = countWithDates > 0 ? totalDays / countWithDates : 0
@@ -416,7 +419,7 @@ export default {
       const total = allOrders.value.length
       if (total === 0) return 0
       const filled = statusData.value.delivered + statusData.value.shipped
-      return Number(((filled / total) * 100).toFixed(1))
+      return (filled / total) * 100
     })
 
     // Avg processing time = average days from order to delivery. null when there is nothing to average
@@ -588,9 +591,14 @@ export default {
       return allBacklogItems.value.filter(b => validSkus.has(b.item_sku))
     })
 
+    // Only the most recent request may update the page (a slow, older response must not overwrite it)
+    let latestRequest = 0
+
     const loadData = async () => {
+      const requestId = ++latestRequest
       try {
         loading.value = true
+        error.value = null
         const filters = getCurrentFilters()
 
         const [summaryData, ordersResult, inventoryData, backlogData] = await Promise.all([
@@ -600,14 +608,20 @@ export default {
           api.getBacklog()
         ])
 
+        if (requestId !== latestRequest) return
+
         summary.value = summaryData
         allOrders.value = ordersResult
         inventoryItems.value = inventoryData
         allBacklogItems.value = backlogData
       } catch (err) {
-        error.value = 'Failed to load dashboard data: ' + err.message
+        if (requestId === latestRequest) {
+          error.value = 'Failed to load dashboard data: ' + err.message
+        }
       } finally {
-        loading.value = false
+        if (requestId === latestRequest) {
+          loading.value = false
+        }
       }
     }
 
