@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>提案書: 在庫管理ダッシュボードのモダナイズ | MC-2026-0417</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --bg: #f8fafc;
+    --accent: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --warn-soft: #fffbeb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans JP", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  header {
+    background: var(--ink);
+    color: #fff;
+    padding: 48px 24px 40px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  header .meta { color: #94a3b8; font-size: 14px; margin: 0 0 12px; }
+  header h1 { margin: 0 0 16px; font-size: 32px; line-height: 1.4; }
+  header .facts { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 14px; color: #cbd5e1; }
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    background: #fff; border-bottom: 1px solid var(--line);
+  }
+  nav .wrap { display: flex; gap: 20px; padding: 10px 24px; overflow-x: auto; white-space: nowrap; font-size: 14px; }
+  nav a { color: var(--muted); text-decoration: none; }
+  nav a:hover { color: var(--accent); }
+  main { padding: 16px 24px 80px; }
+  section { padding-top: 40px; }
+  h2 { font-size: 24px; margin: 0 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
+  h3 { font-size: 18px; margin: 28px 0 8px; }
+  p { margin: 0 0 12px; }
+  ul { padding-left: 1.4em; margin: 0 0 12px; }
+  li { margin-bottom: 6px; }
+  .lead { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 16px 20px; border-radius: 0 8px 8px 0; }
+  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 15px; margin: 12px 0 16px; }
+  th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 500; }
+  td.num, th.num { white-space: nowrap; }
+  tr.buffer td { background: #f8fafc; color: var(--muted); }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #dcfce7; color: #166534; }
+  .tag.off { background: #f1f5f9; color: var(--muted); }
+  .item { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 20px 12px; margin-bottom: 16px; }
+  .item h3 { margin-top: 16px; }
+  dl { margin: 0; }
+  dt { font-weight: 700; font-size: 14px; color: var(--muted); margin-top: 8px; }
+  dd { margin: 0 0 4px; }
+  .assume { background: var(--warn-soft); border: 1px solid #fde68a; border-radius: 8px; padding: 12px 20px; margin-bottom: 12px; }
+  .assume strong { color: var(--warn); }
+  .placeholder { color: var(--muted); font-style: italic; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 24px; border-top: 1px solid var(--line); }
+  @media print { nav { display: none; } header { background: #fff; color: #000; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="meta">RFP 番号 MC-2026-0417 への回答</p>
+    <h1>提案書: 在庫管理ダッシュボードのモダナイズ</h1>
+    <div class="facts">
+      <span>提出先: Meridian Components, Inc. 調達部長 J. Okafor 様</span>
+      <span>提出期限: 2026年5月8日 17:00(米国中部時間)</span>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <div class="wrap">
+    <a href="#summary">1. エグゼクティブサマリー</a>
+    <a href="#approach">2. 技術アプローチ</a>
+    <a href="#references">3. 関連実績</a>
+    <a href="#schedule">4. スケジュール</a>
+    <a href="#price">5. 価格と前提条件</a>
+  </div>
+</nav>
+
+<main>
+<div class="wrap">
+
+<section id="summary">
+  <h2>1. エグゼクティブサマリー</h2>
+  <p class="lead">Meridian Components のオペレーションチームは、日々の業務の起点である概要ページの数字を信用できず、表計算ソフトで集計し直しています。IT チームは自動テストがないために変更を承認できず、改善が止まっています。この2つが、現行システムの価値を引き出せていない根本原因だと理解しています。</p>
+  <p>私たちは、<strong>「確実に進める」</strong>ことを提案の軸に置きます。</p>
+  <ul>
+    <li><strong>最初の数週間で、現場の信頼を取り戻します。</strong>概要ページ(R1)を最優先で直し、期間や拠点を変えれば KPI が正しく動く状態を、最初のマイルストーンとして納品します。</li>
+    <li><strong>続いて、変更を安全にします。</strong>ブラウザテスト(R4)とアーキテクチャドキュメント(R5)を整備し、IT チームが以降の変更を承認できる土台を作ります。</li>
+    <li><strong>その土台の上で、残りを進めます。</strong>Reports の欠陥解消(R2)と発注推奨機能(R3)は、テストに守られた状態で進めます。</li>
+    <li><strong>希望項目は、東京チームの課題に直結する国際化対応(D2)に絞って提案します。</strong>UI のモダナイズ(D1)とダークモード(D3)は、今回は範囲に含めません。</li>
+    <li><strong>価格は上限額付きの T&amp;M とします。</strong>R2 の欠陥件数が「少なくとも8件」で確定していないため、調査の結果に応じて工数を精算します。上限額は先に確定し、予算の予見可能性を担保します。進捗は各フェーズの終わりに、動くものと数字でご報告します。</li>
+  </ul>
+</section>
+
+<section id="approach">
+  <h2>2. 技術アプローチ</h2>
+
+  <h3>2.1 要件対応表</h3>
+  <table>
+    <thead><tr><th class="num">#</th><th>要件</th><th>提案での扱い</th><th class="num">フェーズ</th></tr></thead>
+    <tbody>
+      <tr><td>R1</td><td>概要ページの改修</td><td><span class="tag">提案する</span> 最優先</td><td>1</td></tr>
+      <tr><td>R2</td><td>Reports モジュールの改修</td><td><span class="tag">提案する</span></td><td>3</td></tr>
+      <tr><td>R3</td><td>発注推奨機能</td><td><span class="tag">提案する</span></td><td>4</td></tr>
+      <tr><td>R4</td><td>ブラウザテストの自動化</td><td><span class="tag">提案する</span></td><td>2</td></tr>
+      <tr><td>R5</td><td>アーキテクチャドキュメント</td><td><span class="tag">提案する</span></td><td>2</td></tr>
+      <tr><td>D1</td><td>UI のモダナイズ</td><td><span class="tag off">今回は提案しない</span> 前提 A2 参照</td><td>-</td></tr>
+      <tr><td>D2</td><td>国際化対応</td><td><span class="tag">提案する</span> 東京倉庫向け</td><td>4</td></tr>
+      <tr><td>D3</td><td>ダークモード</td><td><span class="tag off">今回は提案しない</span></td><td>-</td></tr>
+    </tbody>
+  </table>
+
+  <div class="item">
+    <h3>2.2 R1 概要ページの改修</h3>
+    <dl>
+      <dt>進め方</dt><dd>概要ページの各 KPI が、画面上部のフィルター(期間・倉庫・カテゴリー・注文ステータス)のどれを受け取り、どのデータで計算されているかを洗い出します。前任ベンダーの引き継ぎメモは、このページの不具合に触れていません。そのため、メモの記述は鵜呑みにせず、コードとの突き合わせから始めます。</dd>
+      <dt>リスク</dt><dd>原因が1か所とは限りません。画面側でフィルターを渡していない場合と、API 側で無視している場合の両方があり得ます。調査は最初の数日で区切り、結果を共有します。</dd>
+      <dt>完了基準</dt><dd>すべての KPI が、4種のフィルターの選択を反映する。フィルターごとの期待値を一覧にし、バックエンドのテストとブラウザ上の操作の両方で確認する。</dd>
+    </dl>
+  </div>
+
+  <div class="item">
+    <h3>2.3 R4 ブラウザテストの自動化</h3>
+    <dl>
+      <dt>進め方</dt><dd>主要なユーザーフローを、貴社と合意したうえで選定します(前提 A3)。選んだフローを、実際のブラウザを操作するテストにします。CI で実行できる形で引き渡します。</dd>
+      <dt>リスク</dt><dd>「主要」の範囲が広がると工数が膨らみます。フローの一覧を最初に合意することで防ぎます。</dd>
+      <dt>完了基準</dt><dd>合意したフローがすべて自動テストで通る。IT チームの手元で、手順書どおりに実行できる。</dd>
+    </dl>
+  </div>
+
+  <div class="item">
+    <h3>2.4 R5 アーキテクチャドキュメント</h3>
+    <dl>
+      <dt>進め方</dt><dd>構成(Vue 3 + Vite、FastAPI、JSON ファイルによるデータ)、データフロー、フィルターの仕組み、起動方法、既知の課題を、コードから確認して記載します。形式は Markdown とします。</dd>
+      <dt>リスク</dt><dd>前任ベンダーのメモは不完全で、古い箇所もあります。記載内容はコードで裏取りします。</dd>
+      <dt>完了基準</dt><dd>新しく着任した IT 担当者が、このドキュメントだけでアプリを起動し、主要な構成を説明できる。</dd>
+    </dl>
+  </div>
+
+  <div class="item">
+    <h3>2.5 R2 Reports モジュールの改修</h3>
+    <dl>
+      <dt>進め方</dt><dd>まず、貴社が記録している8件以上の問題を受け取り、こちらの調査で見つけたものと突き合わせて一覧にします。件数と優先順位を合意したうえで、修正に着手します。</dd>
+      <dt>リスク</dt><dd>件数が確定していません。T&amp;M の上限額内で収まらない場合は、追加の修正を協議します(前提 A4)。</dd>
+      <dt>完了基準</dt><dd>合意した一覧のすべての項目が解消され、それぞれにテストがある。</dd>
+    </dl>
+  </div>
+
+  <div class="item">
+    <h3>2.6 R3 発注推奨機能</h3>
+    <dl>
+      <dt>進め方</dt><dd>現在の在庫水準、需要予測、オペレーターが指定する予算上限から、発注を推奨する Restocking ビューを追加します。推奨の計算ルール(安全在庫の考え方など)は、R. Tanaka 様のチームと短いワークショップで決めます。</dd>
+      <dt>リスク</dt><dd>需要予測データの品質が推奨の精度を左右します。データの不整合が見つかった場合は、先に共有します。</dd>
+      <dt>完了基準</dt><dd>予算上限を指定すると、倉庫ごとの推奨発注リストが表示される。合意したサンプルケースで期待どおりの結果になる。</dd>
+    </dl>
+  </div>
+
+  <div class="item">
+    <h3>2.7 D2 国際化対応</h3>
+    <dl>
+      <dt>進め方</dt><dd>東京倉庫のスタッフが日常的に使う画面から、順に日本語表示に対応します。対象の画面は、R1〜R3 の納品物を含め、フェーズ4で合意します。</dd>
+      <dt>完了基準</dt><dd>合意した画面で、言語を切り替えられる。</dd>
+    </dl>
+  </div>
+</section>
+
+<section id="references">
+  <h2>3. 関連実績</h2>
+  <p class="placeholder">(社内資料から追記)</p>
+</section>
+
+<section id="schedule">
+  <h2>4. スケジュール</h2>
+  <p>契約開始日から数える目安です。具体的な日付は、契約日の確定後に置き換えます。</p>
+  <table>
+    <thead><tr><th>フェーズ</th><th>期間(目安)</th><th>内容</th><th>成果物</th></tr></thead>
+    <tbody>
+      <tr><td>1. 概要ページの修正</td><td>第1〜2週</td><td>R1 の調査と修正</td><td>KPI がフィルターに連動する概要ページ</td></tr>
+      <tr class="buffer"><td>レビューと予備</td><td>第3週</td><td>貴社のレビュー、承認、予備</td><td>フェーズ1の受け入れ</td></tr>
+      <tr><td>2. 安全な変更の土台</td><td>第4〜6週</td><td>R4、R5</td><td>ブラウザテスト一式、アーキテクチャドキュメント</td></tr>
+      <tr class="buffer"><td>レビューと予備</td><td>第7週</td><td>貴社のレビュー、承認、予備</td><td>フェーズ2の受け入れ</td></tr>
+      <tr><td>3. Reports の改修</td><td>第8〜10週<br>(幅: 3〜5週)</td><td>R2</td><td>欠陥一覧と、解消済みの Reports</td></tr>
+      <tr class="buffer"><td>レビューと予備</td><td>第11週<br>(幅の上限の場合は第13週)</td><td>貴社のレビュー、承認、予備</td><td>フェーズ3の受け入れ</td></tr>
+      <tr><td>4. 新機能と国際化</td><td>第12〜15週<br>(幅の上限の場合は第14〜17週)</td><td>R3、D2</td><td>Restocking ビュー、日本語表示</td></tr>
+    </tbody>
+  </table>
+  <p>全体で<strong>約15週間</strong>を目安とし、フェーズ3が幅の上限(5週)になった場合は<strong>約17週間</strong>です。</p>
+  <ul>
+    <li><strong>フェーズ3の期間は、幅で示しています。</strong>R2 の欠陥件数は「少なくとも8件」で確定していないため、欠陥一覧に合意した時点で、期間を確定します(前提 A4)。期間が確定した時点で、以降のフェーズの日程を更新してお知らせします。</li>
+    <li><strong>各フェーズの間に、1週間のレビューと予備を置いています。</strong>貴社での確認と承認の時間と、見込みを外したときの余裕を兼ねています。</li>
+    <li>各フェーズの終わりに、動くものを使ったデモと進捗の報告を行います。</li>
+  </ul>
+</section>
+
+<section id="price">
+  <h2>5. 価格と前提条件</h2>
+  <h3>5.1 価格</h3>
+  <p><strong>上限額付きの T&amp;M</strong> とします。フェーズごとに工数の目安と上限を設け、実績に応じて精算します。</p>
+  <table>
+    <thead><tr><th>フェーズ</th><th>工数の目安(人日)</th></tr></thead>
+    <tbody>
+      <tr><td>1. 概要ページの修正</td><td class="placeholder">(見積もり後に記入)</td></tr>
+      <tr><td>2. 安全な変更の土台</td><td class="placeholder">(見積もり後に記入)</td></tr>
+      <tr><td>3. Reports の改修</td><td class="placeholder">(見積もり後に記入)</td></tr>
+      <tr><td>4. 新機能と国際化</td><td class="placeholder">(見積もり後に記入)</td></tr>
+      <tr><td><strong>上限額(合計)</strong></td><td class="placeholder">(見積もり後に記入)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2 前提条件</h3>
+  <p>RFP に記載がなく、見積もりに影響する点について、次のとおり前提を置きました。これらが異なる場合は、スケジュールと価格を見直します。ご質問の期限(4月28日)までに、確認事項として送付します。</p>
+  <div class="assume"><strong>A1. 予算:</strong> RFP に予算のレンジが記載されていないため、上記の T&amp;M の上限額は、当社の見積もりに基づいて提示します。貴社のご予算に上限がある場合は、範囲を調整します。</div>
+  <div class="assume"><strong>A2. UI の「現在の標準」:</strong> D1 で言及されている「現在の標準」は定義されていません。このため、D1 は今回の提案の範囲に含めません。範囲に含める場合は、基準となるデザイン指針をご提示ください。</div>
+  <div class="assume"><strong>A3. 「主要なユーザーフロー」:</strong> R4 の対象は、貴社との合意で選定します。目安として、概要ページの確認、在庫の絞り込み、Reports の表示、Restocking での発注推奨の4〜5フローを想定しています。</div>
+  <div class="assume"><strong>A4. R2 の欠陥件数:</strong> 「少なくとも8件」とされている件数は、貴社の記録をいただいたうえで確定します。確定した一覧を超える追加分は、別途協議します。フェーズ3のスケジュール(3〜5週の幅)も、この一覧の合意をもって確定します。</div>
+  <div class="assume"><strong>A5. 環境とデータ:</strong> 現行のソースコードとサンプルデータを、このまま開発に使えることを前提とします。貴社側の検証環境や、担当者(R. Tanaka 様のチーム、IT 部門)への確認の機会をいただけることを前提とします。</div>
+</section>
+
+</div>
+</main>
+
+<footer>本提案書は、RFP MC-2026-0417 への回答です。</footer>
+
+</body>
+</html>
